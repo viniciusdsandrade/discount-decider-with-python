@@ -16,19 +16,24 @@ def calcular_fv_sem_aportes(pv, i, n):
     return fv
 
 
-def calcular_fv_com_aportes(pmt, i, n):
+def calcular_fv_com_aportes(pmt, taxa_anual, anos):
     """
     Calcula o Valor Futuro (FV) com aportes regulares (Anuidade).
 
-    :param pmt: Pagamento periódico (aporte regular)
-    :param i: Taxa de juros por período (decimal)
-    :param n: Número de períodos
-    :return: Valor Futuro (FV)
+    :param pmt: Pagamento mensal (aporte regular) em R$
+    :param taxa_anual: Taxa de juros anual em %
+    :param anos: Número de anos
+    :return: Valor Futuro (FV) em R$
     """
-    if i == 0:
-        fv = pmt * n
+    # Converter taxa anual para taxa mensal em decimal
+    taxa_mensal = taxa_anual / 100 / 12
+    # Converter anos para número de períodos (meses)
+    n_meses = int(anos * 12)
+
+    if taxa_mensal == 0:
+        fv = pmt * n_meses
     else:
-        fv = pmt * ((1 + i) ** n - 1) / i
+        fv = pmt * ((1 + taxa_mensal) ** n_meses - 1) / taxa_mensal
     return fv
 
 
@@ -248,28 +253,58 @@ def calcular_fv_sem_aportes_opcao():
 def calcular_fv_com_aportes_opcao():
     """
     Opção para calcular o Valor Futuro (FV) com aportes regulares (Anuidade).
+    Considera:
+    - Taxa de juros anual
+    - Período em anos
+    - Aporte mensal
     """
     print("\n=== Cálculo do Valor Futuro (FV) com Aportes Regulares ===\n")
     try:
-        pmt = float(input("Digite o valor da parcela mensal (PMT) em R$: ").replace(',', '.'))
+        # Entrada para Pagamento Mensal
+        pmt_input = input("Digite o valor da parcela mensal (PMT) em R$: ").replace(',', '.')
+        pmt = float(pmt_input)
         if pmt < 0:
             print("O valor da parcela (PMT) não pode ser negativo.")
             return
-        i = float(input("Digite a taxa de juros por período (em %): ").replace(',', '.')) / 100
-        n = int(input("Digite o número de períodos: "))
-        if n < 0:
-            print("O número de períodos não pode ser negativo.")
+
+        # Entrada para Taxa de Juros Anual
+        i_input = input("Digite a taxa de juros anual (em %): ").replace(',', '.')
+        taxa_anual = float(i_input)
+        if taxa_anual < 0:
+            print("A taxa de juros anual não pode ser negativa.")
             return
+        taxa_mensal = taxa_anual / 100 / 12
+
+        # Entrada para Período de Investimento em Anos
+        anos_input = input("Digite o período de investimento (em anos): ").replace(',', '.')
+        anos = float(anos_input)
+        if anos < 0:
+            print("O período de investimento não pode ser negativo.")
+            return
+        n_meses = int(anos * 12)
+
     except ValueError:
         print("Entrada inválida. Por favor, insira valores numéricos válidos.")
         return
 
-    fv = calcular_fv_com_aportes(pmt, i, n)
+    # Cálculo do Valor Futuro
+    fv = calcular_fv_com_aportes(pmt, taxa_anual, anos)
+
+    # Cálculo do Total Investido
+    total_investido = pmt * n_meses
+
+    # Cálculo dos Rendimentos
+    rendimentos = fv - total_investido
+
+    # Exibição dos Resultados
     print("\n=== Resultados ===")
     print(f"Pagamento Mensal (PMT): R$ {pmt:,.2f}")
-    print(f"Taxa de Juros por Período (i): {i * 100:.4f}%")
-    print(f"Número de Períodos (n): {n}")
+    print(f"Taxa de Juros Anual: {taxa_anual:.2f}%")
+    print(f"Número de Anos: {anos:.2f}")
+    print(f"Número de Períodos (Meses): {n_meses}")
     print(f"Valor Futuro (FV): R$ {fv:,.2f}")
+    print(f"Total Investido: R$ {total_investido:,.2f}")
+    print(f"Rendimentos Acumulados: R$ {rendimentos:,.2f}")
 
 
 def calcular_fv_combinada_opcao():
