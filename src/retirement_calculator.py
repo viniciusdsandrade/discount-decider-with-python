@@ -1,6 +1,41 @@
 # retiremente_calculator.py
 
 import math
+from scipy.optimize import newton
+
+
+def f(i, fv, pv, pmt, n):
+    return pv * (1 + i) ** n + pmt * ((1 + i) ** n - 1) / i - fv
+
+
+def df(i, pv, pmt, n):
+    return pv * n * (1 + i) ** (n - 1) + pmt * (n * (1 + i) ** (n - 1) * i - ((1 + i) ** n - 1)) / (i ** 2)
+
+
+def resolver_n(fv, pmt, pv, i):
+    """
+    Calcula o Número de Períodos (n) necessários para atingir um determinado Valor Futuro (FV).
+
+    :param fv: Valor Futuro desejado
+    :param pmt: Pagamento periódico (aporte regular)
+    :param pv: Valor Presente (investimento inicial)
+    :param i: Taxa de juros por período (decimal)
+    :return: Número de Períodos (n)
+    """
+    if i == 0:
+        if pmt == 0:
+            if pv == 0:
+                raise ValueError("PV e PMT não podem ser ambos zero.")
+            return fv / pv
+        else:
+            return (fv - pv) / pmt
+    else:
+        numerator = fv * i + pmt
+        denominator = pv * i + pmt
+        if numerator <= 0 or denominator <= 0:
+            raise ValueError("Parâmetros resultam em logaritmo de número não positivo.")
+        n = math.log(numerator / denominator) / math.log(1 + i)
+        return n
 
 
 def calcular_fv_sem_aportes(pv, i, n):
@@ -119,37 +154,12 @@ def resolver_pmt(fv, pv, i, n):
             raise ZeroDivisionError("Denominador é zero. Verifique os parâmetros de entrada.")
         pmt = (fv - pv * (1 + i) ** n) / denominador
     return pmt
-    
 
-def resolver_n(fv, pmt, pv, i):
+
+def resolver_i_tradicional(fv, pv, pmt, n, taxa_inicial=0.01, tolerancia=1e-6, max_iter=1000):
     """
-    Calcula o Número de Períodos (n) necessários para atingir um determinado Valor Futuro (FV).
-
-    :param fv: Valor Futuro desejado
-    :param pmt: Pagamento periódico (aporte regular)
-    :param pv: Valor Presente (investimento inicial)
-    :param i: Taxa de juros por período (decimal)
-    :return: Número de Períodos (n)
-    """
-    if i == 0:
-        if pmt == 0:
-            if pv == 0:
-                raise ValueError("PV e PMT não podem ser ambos zero.")
-            return fv / pv
-        else:
-            return (fv - pv) / pmt
-    else:
-        numerator = fv * i + pmt
-        denominator = pv * i + pmt
-        if numerator <= 0 or denominator <= 0:
-            raise ValueError("Parâmetros resultam em logaritmo de número não positivo.")
-        n = math.log(numerator / denominator) / math.log(1 + i)
-        return n
-
-
-def resolver_i(fv, pv, pmt, n, taxa_inicial=0.01, tolerancia=1e-6, max_iter=1000):
-    """
-    Calcula a Taxa de Juros (i) necessária para atingir um determinado Valor Futuro (FV) usando o Método de Newton-Raphson.
+    Calcula a Taxa de Juros (i) necessária para atingir um determinado Valor Futuro (FV)
+    usando o Método de Newton-Raphson.
 
     :param fv: Valor Futuro desejado
     :param pv: Valor Presente (investimento inicial)
@@ -161,7 +171,10 @@ def resolver_i(fv, pv, pmt, n, taxa_inicial=0.01, tolerancia=1e-6, max_iter=1000
     :return: Taxa de juros por período (i) em decimal
     """
     i = taxa_inicial
-    for _ in range(max_iter):
+    minimo_i = 0.0
+    maximo_i = 1.0  # 100% ao mês
+
+    for iteracao in range(1, max_iter + 1):
         # Função f(i) = PV*(1+i)^n + PMT*((1+i)^n -1)/i - FV
         try:
             fv_calculado = pv * (1 + i) ** n + pmt * ((1 + i) ** n - 1) / i
@@ -171,7 +184,9 @@ def resolver_i(fv, pv, pmt, n, taxa_inicial=0.01, tolerancia=1e-6, max_iter=1000
 
         # Derivada de f(i) em relação a i
         try:
-            df = pv * n * (1 + i) ** (n - 1) + pmt * (((1 + i) ** n * (n / (1 + i))) - ((1 + i) ** n - 1) / i ** 2)
+            term1 = pv * n * (1 + i) ** (n - 1)
+            term2 = pmt * (n * (1 + i) ** (n - 1) * i - ((1 + i) ** n - 1)) / (i ** 2)
+            df = term1 + term2
         except ZeroDivisionError:
             df = float('inf')
 
@@ -181,13 +196,218 @@ def resolver_i(fv, pv, pmt, n, taxa_inicial=0.01, tolerancia=1e-6, max_iter=1000
         # Atualiza i usando Newton-Raphson
         i_new = i - f / df
 
+        # Verifica se i_new está dentro dos limites
+        if i_new < minimo_i or i_new > maximo_i:
+            raise ValueError(f"Taxa de juros {i_new * 100:.2f}% fora dos limites durante a iteração {iteracao}.")
+
         # Verifica a convergência
         if abs(i_new - i) < tolerancia:
+            print(f"Convergência alcançada na iteração {iteracao}.")
             return i_new
 
         i = i_new
 
-    raise ValueError("Método de Newton-Raphson não convergiu.")
+    raise ValueError("Método de Newton-Raphson não convergiu dentro do número máximo de iterações.")
+
+
+def resolver_i_scipy(fv, pv, pmt, n, taxa_inicial=0.01, tolerancia=1e-6, max_iter=1000):
+    """
+    Calcula a Taxa de Juros (i) necessária para atingir um determinado Valor Futuro (FV)
+    usando o Metodo de Newton-Raphson da biblioteca SciPy.
+
+    :param fv: Valor Futuro desejado
+    :param pv: Valor Presente (investimento inicial)
+    :param pmt: Pagamento periódico (aporte regular)
+    :param n: Número de períodos
+    :param taxa_inicial: Chute inicial para a taxa de juros
+    :param tolerancia: Tolerância para a convergência
+    :param max_iter: Número máximo de iterações
+    :return: Taxa de juros por período (i) em decimal
+    """
+
+    # Define a função financeira f(i)
+    def f(i, fv, pv, pmt, n):
+        return pv * (1 + i) ** n + pmt * ((1 + i) ** n - 1) / i - fv
+
+    # Define a derivada de f(i)
+    def df(i, pv, pmt, n):
+        return pv * n * (1 + i) ** (n - 1) + pmt * (n * (1 + i) ** (n - 1) * i - ((1 + i) ** n - 1)) / (i ** 2)
+
+    try:
+        # Utiliza o metodo 'newton' da SciPy, passando a função, chute inicial, derivada e argumentos
+        i = newton(func=f, x0=taxa_inicial, fprime=df, args=(fv, pv, pmt, n), tol=tolerancia, maxiter=max_iter)
+        return i
+    except RuntimeError:
+        raise ValueError("Método SciPy Newton-Raphson não convergiu.")
+    except Exception as e:
+        raise ValueError(f"Erro no cálculo com SciPy: {e}")
+
+
+def calcular_fv_combinada_opcao():
+    """
+    Opção para calcular o Valor Futuro (FV) com investimento inicial + aportes regulares,
+    utilizando taxa de juros anual e período em anos, e calcular rendimentos para diferentes frequências.
+    """
+    print("\n=== Cálculo do Valor Futuro (FV) com Investimento Inicial + Aportes Regulares ===\n")
+    try:
+        pv_input = input("Digite o Valor Presente (PV) em R$: ").replace(',', '.')
+        pv = float(pv_input)
+        if pv < 0:
+            print("O Valor Presente (PV) não pode ser negativo.")
+            return
+        pmt_input = input("Digite o valor da parcela mensal (PMT) em R$: ").replace(',', '.')
+        pmt = float(pmt_input)
+        if pmt < 0:
+            print("O valor da parcela (PMT) não pode ser negativo.")
+            return
+        taxa_anual_input = input("Digite a taxa de juros anual (em %): ").replace(',', '.')
+        taxa_anual = float(taxa_anual_input)
+        if taxa_anual < 0:
+            print("A taxa de juros anual não pode ser negativa.")
+            return
+        anos_input = input("Digite o número de anos: ").replace(',', '.')
+        anos = float(anos_input)
+        if anos <= 0:
+            print("O número de anos deve ser positivo.")
+            return
+    except ValueError:
+        print("Entrada inválida. Por favor, insira valores numéricos válidos.")
+        return
+
+    frequencias = ['diaria', 'mensal', 'anual']
+    resultados = {}
+
+    for freq in frequencias:
+        fv = calcular_fv_combinada(pv, pmt, taxa_anual, anos, frequencia=freq)
+        rendimentos = calcular_rendimentos(fv, pv, pmt, anos, frequencia=freq)
+        resultados[freq] = {'fv': fv, 'rendimentos': rendimentos}
+
+    print("\n=== Resultados ===")
+    print(f"Valor Presente (PV): R$ {pv:,.2f}")
+    print(f"Pagamento Mensal (PMT): R$ {pmt:,.2f}")
+    print(f"Taxa de Juros Anual: {taxa_anual:.2f}%")
+    print(f"Número de Anos: {anos}")
+    print("\n--- Frequências de Capitalização ---")
+    for freq in frequencias:
+        fv = resultados[freq]['fv']
+        rendimentos = resultados[freq]['rendimentos']
+        print(f"\nFrequência de Capitalização: {freq.capitalize()}")
+        print(f"Valor Futuro (FV): R$ {fv:,.2f}")
+        print(f"Rendimentos Acumulados: R$ {rendimentos:,.2f}")
+
+
+def resolver_i_opcao():
+    """
+    Opção para calcular a Taxa de Juros (i).
+    """
+    print("\n=== Cálculo da Taxa de Juros (i) ===\n")
+    print("Escolha o método de cálculo:")
+    print("1. Método Tradicional (Newton-Raphson)")
+    print("2. Método SciPy (newton)")
+
+    metodo_escolha = input("\nDigite 1 ou 2: ").strip()
+
+    if metodo_escolha not in ['1', '2']:
+        print("Opção inválida. Por favor, escolha 1 ou 2.")
+        return
+
+    # Coleta dos dados de entrada
+    try:
+        fv = float(input("Digite o Valor Futuro (FV) desejado em R$: ").replace(',', '.'))
+        if fv < 0:
+            print("O Valor Futuro (FV) não pode ser negativo.")
+            return
+        pv = float(input("Digite o Valor Presente (PV) em R$: ").replace(',', '.'))
+        if pv < 0:
+            print("O Valor Presente (PV) não pode ser negativo.")
+            return
+        pmt = float(input("Digite o valor da parcela mensal (PMT) em R$: ").replace(',', '.'))
+        if pmt < 0:
+            print("O valor da parcela (PMT) não pode ser negativo.")
+            return
+        n = int(input("Digite o número de períodos (meses): "))
+        if n <= 0:
+            print("O número de períodos deve ser positivo.")
+            return
+    except ValueError:
+        print("Entrada inválida. Por favor, insira valores numéricos válidos.")
+        return
+
+    # Escolha do método e cálculo da taxa de juros
+    if metodo_escolha == '1':
+        # Método Tradicional
+        try:
+            i = resolver_i_tradicional(fv, pv, pmt, n)
+            tae = (1 + i) ** 12 - 1  # Calculando a Taxa Anual Equivalente (TAE) com base na taxa mensal
+            print("\n=== Resultados (Método Tradicional) ===")
+            print(f"Valor Futuro (FV): R$ {fv:,.2f}")
+            print(f"Valor Presente (PV): R$ {pv:,.2f}")
+            print(f"Pagamento Mensal (PMT): R$ {pmt:,.2f}")
+            print(f"Número de Períodos (n): {n}")
+            print(f"Taxa de Juros por Período (i): {i * 100:.6f}%")
+            print(f"Taxa Anual Equivalente (TAE): {tae * 100:.6f}%")
+        except ZeroDivisionError as e:
+            print(f"Erro no cálculo: {e}")
+        except ValueError as e:
+            print(f"Erro no cálculo: {e}")
+        except Exception as e:
+            print(f"Erro no cálculo: {e}")
+
+    elif metodo_escolha == '2':
+        # Metodo SciPy
+        try:
+            i = resolver_i_scipy(fv, pv, pmt, n)
+            tae = (1 + i) ** 12 - 1  # Calculando a Taxa Anual Equivalente (TAE) com base na taxa mensal
+            print("\n=== Resultados (Método SciPy) ===")
+            print(f"Valor Futuro (FV): R$ {fv:,.2f}")
+            print(f"Valor Presente (PV): R$ {pv:,.2f}")
+            print(f"Pagamento Mensal (PMT): R$ {pmt:,.2f}")
+            print(f"Número de Períodos (n): {n}")
+            print(f"Taxa de Juros por Período (i): {i * 100:.6f}%")
+            print(f"Taxa Anual Equivalente (TAE): {tae * 100:.6f}%")
+        except ValueError as e:
+            print(f"Erro no cálculo: {e}")
+        except Exception as e:
+            print(f"Erro no cálculo: {e}")
+    else:
+        print("Opção inválida. Por favor, escolha 1 ou 2.")
+
+
+def resolver_n_opcao():
+    """
+    Opção para calcular o Número de Períodos (n).
+    """
+    print("\n=== Cálculo do Número de Períodos (n) ===\n")
+    try:
+        fv = float(input("Digite o Valor Futuro (FV) desejado em R$: ").replace(',', '.'))
+        if fv < 0:
+            print("O Valor Futuro (FV) não pode ser negativo.")
+            return
+        pmt = float(input("Digite o valor da parcela mensal (PMT) em R$: ").replace(',', '.'))
+        if pmt < 0:
+            print("O valor da parcela (PMT) não pode ser negativo.")
+            return
+        pv = float(input("Digite o Valor Presente (PV) em R$: ").replace(',', '.'))
+        if pv < 0:
+            print("O Valor Presente (PV) não pode ser negativo.")
+            return
+        i = float(input("Digite a taxa de juros por período (em %): ").replace(',', '.')) / 100
+    except ValueError:
+        print("Entrada inválida. Por favor, insira valores numéricos válidos.")
+        return
+
+    try:
+        n = resolver_n(fv, pmt, pv, i)
+        print("\n=== Resultados ===")
+        print(f"Valor Futuro (FV): R$ {fv:,.2f}")
+        print(f"Pagamento Mensal (PMT): R$ {pmt:,.2f}")
+        print(f"Valor Presente (PV): R$ {pv:,.2f}")
+        print(f"Taxa de Juros por Período (i): {i * 100:.4f}%")
+        print(f"Número de Períodos (n): {n:.2f} períodos")
+    except ValueError as e:
+        print(f"Erro no cálculo: {e}")
+    except Exception as e:
+        print(f"Erro no cálculo: {e}")
 
 
 def calcular_fv_sem_aportes_opcao():
@@ -296,59 +516,6 @@ def calcular_fv_com_aportes_opcao():
     print(f"Rendimentos Acumulados: R$ {rendimentos:,.2f}")
 
 
-def calcular_fv_combinada_opcao():
-    """
-    Opção para calcular o Valor Futuro (FV) com investimento inicial + aportes regulares,
-    utilizando taxa de juros anual e período em anos, e calcular rendimentos para diferentes frequências.
-    """
-    print("\n=== Cálculo do Valor Futuro (FV) com Investimento Inicial + Aportes Regulares ===\n")
-    try:
-        pv_input = input("Digite o Valor Presente (PV) em R$: ").replace(',', '.')
-        pv = float(pv_input)
-        if pv < 0:
-            print("O Valor Presente (PV) não pode ser negativo.")
-            return
-        pmt_input = input("Digite o valor da parcela mensal (PMT) em R$: ").replace(',', '.')
-        pmt = float(pmt_input)
-        if pmt < 0:
-            print("O valor da parcela (PMT) não pode ser negativo.")
-            return
-        taxa_anual_input = input("Digite a taxa de juros anual (em %): ").replace(',', '.')
-        taxa_anual = float(taxa_anual_input)
-        if taxa_anual < 0:
-            print("A taxa de juros anual não pode ser negativa.")
-            return
-        anos_input = input("Digite o número de anos: ").replace(',', '.')
-        anos = float(anos_input)
-        if anos <= 0:
-            print("O número de anos deve ser positivo.")
-            return
-    except ValueError:
-        print("Entrada inválida. Por favor, insira valores numéricos válidos.")
-        return
-
-    frequencias = ['diaria', 'mensal', 'anual']
-    resultados = {}
-
-    for freq in frequencias:
-        fv = calcular_fv_combinada(pv, pmt, taxa_anual, anos, frequencia=freq)
-        rendimentos = calcular_rendimentos(fv, pv, pmt, anos, frequencia=freq)
-        resultados[freq] = {'fv': fv, 'rendimentos': rendimentos}
-
-    print("\n=== Resultados ===")
-    print(f"Valor Presente (PV): R$ {pv:,.2f}")
-    print(f"Pagamento Mensal (PMT): R$ {pmt:,.2f}")
-    print(f"Taxa de Juros Anual: {taxa_anual:.2f}%")
-    print(f"Número de Anos: {anos}")
-    print("\n--- Frequências de Capitalização ---")
-    for freq in frequencias:
-        fv = resultados[freq]['fv']
-        rendimentos = resultados[freq]['rendimentos']
-        print(f"\nFrequência de Capitalização: {freq.capitalize()}")
-        print(f"Valor Futuro (FV): R$ {fv:,.2f}")
-        print(f"Rendimentos Acumulados: R$ {rendimentos:,.2f}")
-
-
 def resolver_pmt_opcao():
     """
     Opção para calcular o Aporte Mensal Necessário (PMT) ou o Número de Períodos (n).
@@ -434,155 +601,21 @@ def resolver_pmt_opcao():
         print("Opção inválida. Por favor, escolha 1 ou 2.")
 
 
-def resolver_n_opcao():
-    """
-    Opção para calcular o Número de Períodos (n).
-    """
-    print("\n=== Cálculo do Número de Períodos (n) ===\n")
-    try:
-        fv = float(input("Digite o Valor Futuro (FV) desejado em R$: ").replace(',', '.'))
-        if fv < 0:
-            print("O Valor Futuro (FV) não pode ser negativo.")
-            return
-        pmt = float(input("Digite o valor da parcela mensal (PMT) em R$: ").replace(',', '.'))
-        if pmt < 0:
-            print("O valor da parcela (PMT) não pode ser negativo.")
-            return
-        pv = float(input("Digite o Valor Presente (PV) em R$: ").replace(',', '.'))
-        if pv < 0:
-            print("O Valor Presente (PV) não pode ser negativo.")
-            return
-        i = float(input("Digite a taxa de juros por período (em %): ").replace(',', '.')) / 100
-    except ValueError:
-        print("Entrada inválida. Por favor, insira valores numéricos válidos.")
-        return
-
-    try:
-        n = resolver_n(fv, pmt, pv, i)
-        print("\n=== Resultados ===")
-        print(f"Valor Futuro (FV): R$ {fv:,.2f}")
-        print(f"Pagamento Mensal (PMT): R$ {pmt:,.2f}")
-        print(f"Valor Presente (PV): R$ {pv:,.2f}")
-        print(f"Taxa de Juros por Período (i): {i * 100:.4f}%")
-        print(f"Número de Períodos (n): {n:.2f} períodos")
-    except ValueError as e:
-        print(f"Erro no cálculo: {e}")
-    except Exception as e:
-        print(f"Erro no cálculo: {e}")
-
-
-def resolver_i_opcao():
-    """
-    Opção para calcular a Taxa de Juros (i).
-    """
-    print("\n=== Cálculo da Taxa de Juros (i) ===\n")
-    try:
-        fv = float(input("Digite o Valor Futuro (FV) desejado em R$: ").replace(',', '.'))
-        if fv < 0:
-            print("O Valor Futuro (FV) não pode ser negativo.")
-            return
-        pv = float(input("Digite o Valor Presente (PV) em R$: ").replace(',', '.'))
-        if pv < 0:
-            print("O Valor Presente (PV) não pode ser negativo.")
-            return
-        pmt = float(input("Digite o valor da parcela mensal (PMT) em R$: ").replace(',', '.'))
-        if pmt < 0:
-            print("O valor da parcela (PMT) não pode ser negativo.")
-            return
-        n = int(input("Digite o número de períodos: "))
-        if n <= 0:
-            print("O número de períodos deve ser positivo.")
-            return
-    except ValueError:
-        print("Entrada inválida. Por favor, insira valores numéricos válidos.")
-        return
-
-    try:
-        i = resolver_i(fv, pv, pmt, n)
-        tae = (1 + i) ** 12 - 1  # Calculando a Taxa Anual Equivalente (TAE) com base na taxa mensal
-        print("\n=== Resultados ===")
-        print(f"Valor Futuro (FV): R$ {fv:,.2f}")
-        print(f"Valor Presente (PV): R$ {pv:,.2f}")
-        print(f"Pagamento Mensal (PMT): R$ {pmt:,.2f}")
-        print(f"Número de Períodos (n): {n}")
-        print(f"Taxa de Juros por Período (i): {i * 100:.6f}%")
-        print(f"Taxa Anual Equivalente (TAE): {tae * 100:.6f}%")
-    except ZeroDivisionError as e:
-        print(f"Erro no cálculo: {e}")
-    except ValueError as e:
-        print(f"Erro no cálculo: {e}")
-    except Exception as e:
-        print(f"Erro no cálculo: {e}")
-
-
-def calcular_fv_combinada_opcao():
-    """
-    Opção para calcular o Valor Futuro (FV) com investimento inicial + aportes regulares,
-    utilizando taxa de juros anual e período em anos, e calcular rendimentos para diferentes frequências.
-    """
-    print("\n=== Cálculo do Valor Futuro (FV) com Investimento Inicial + Aportes Regulares ===\n")
-    try:
-        pv_input = input("Digite o Valor Presente (PV) em R$: ").replace(',', '.')
-        pv = float(pv_input)
-        if pv < 0:
-            print("O Valor Presente (PV) não pode ser negativo.")
-            return
-        pmt_input = input("Digite o valor da parcela mensal (PMT) em R$: ").replace(',', '.')
-        pmt = float(pmt_input)
-        if pmt < 0:
-            print("O valor da parcela (PMT) não pode ser negativo.")
-            return
-        taxa_anual_input = input("Digite a taxa de juros anual (em %): ").replace(',', '.')
-        taxa_anual = float(taxa_anual_input)
-        if taxa_anual < 0:
-            print("A taxa de juros anual não pode ser negativa.")
-            return
-        anos_input = input("Digite o número de anos: ").replace(',', '.')
-        anos = float(anos_input)
-        if anos <= 0:
-            print("O número de anos deve ser positivo.")
-            return
-    except ValueError:
-        print("Entrada inválida. Por favor, insira valores numéricos válidos.")
-        return
-
-    frequencias = ['diaria', 'mensal', 'anual']
-    resultados = {}
-
-    for freq in frequencias:
-        fv = calcular_fv_combinada(pv, pmt, taxa_anual, anos, frequencia=freq)
-        rendimentos = calcular_rendimentos(fv, pv, pmt, anos, frequencia=freq)
-        resultados[freq] = {'fv': fv, 'rendimentos': rendimentos}
-
-    print("\n=== Resultados ===")
-    print(f"Valor Presente (PV): R$ {pv:,.2f}")
-    print(f"Pagamento Mensal (PMT): R$ {pmt:,.2f}")
-    print(f"Taxa de Juros Anual: {taxa_anual:.2f}%")
-    print(f"Número de Anos: {anos}")
-    print("\n--- Frequências de Capitalização ---")
-    for freq in frequencias:
-        fv = resultados[freq]['fv']
-        rendimentos = resultados[freq]['rendimentos']
-        print(f"\nFrequência de Capitalização: {freq.capitalize()}")
-        print(f"Valor Futuro (FV): R$ {fv:,.2f}")
-        print(f"Rendimentos Acumulados: R$ {rendimentos:,.2f}")
-
-
 def main():
     """
     Função principal que interage com o usuário para realizar cálculos financeiros relacionados à aposentadoria.
     """
-    print("=== Calculadora de Aposentadoria ===\n")
-    print("Escolha uma opção:")
-    print("1. Calcular Valor Futuro (FV) sem aportes regulares")
-    print("2. Calcular Valor Futuro (FV) com aportes regulares (Anuidade)")
-    print("3. Calcular Valor Futuro (FV) com investimento inicial + aportes regulares")
-    print("4. Resolver para o Aporte Mensal Necessário (PMT)")
-    print("5. Resolver para o Número de Períodos (n)")
-    print("6. Resolver para a Taxa de Juros (i)")
-    print("7. Sair")
-
     while True:
+        print("\n=== Calculadora de Aposentadoria ===\n")
+        print("Escolha uma opção:")
+        print("1. Calcular Valor Futuro (FV) sem aportes regulares")
+        print("2. Calcular Valor Futuro (FV) com aportes regulares (Anuidade)")
+        print("3. Calcular Valor Futuro (FV) com investimento inicial + aportes regulares")
+        print("4. Resolver para o Aporte Mensal Necessário (PMT) ou Número de Períodos (n)")
+        print("5. Resolver para o Número de Períodos (n)")
+        print("6. Resolver para a Taxa de Juros (i)")
+        print("7. Sair")
+
         escolha = input("\nDigite o número da opção desejada (1-7): ").strip()
         if escolha not in [str(i) for i in range(1, 8)]:
             print("Opção inválida. Por favor, escolha entre 1 e 7.")
