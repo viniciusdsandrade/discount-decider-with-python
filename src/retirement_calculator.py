@@ -4,14 +4,6 @@ import math
 from scipy.optimize import newton
 
 
-def f(i, fv, pv, pmt, n):
-    return pv * (1 + i) ** n + pmt * ((1 + i) ** n - 1) / i - fv
-
-
-def df(i, pv, pmt, n):
-    return pv * n * (1 + i) ** (n - 1) + pmt * (n * (1 + i) ** (n - 1) * i - ((1 + i) ** n - 1)) / (i ** 2)
-
-
 def resolver_n(fv, pmt, pv, i):
     """
     Calcula o Número de Períodos (n) necessários para atingir um determinado Valor Futuro (FV).
@@ -213,7 +205,7 @@ def resolver_i_tradicional(fv, pv, pmt, n, taxa_inicial=0.01, tolerancia=1e-6, m
 def resolver_i_scipy(fv, pv, pmt, n, taxa_inicial=0.01, tolerancia=1e-6, max_iter=1000):
     """
     Calcula a Taxa de Juros (i) necessária para atingir um determinado Valor Futuro (FV)
-    usando o Metodo de Newton-Raphson da biblioteca SciPy.
+    usando o Método de Newton-Raphson da biblioteca SciPy.
 
     :param fv: Valor Futuro desejado
     :param pv: Valor Presente (investimento inicial)
@@ -230,12 +222,23 @@ def resolver_i_scipy(fv, pv, pmt, n, taxa_inicial=0.01, tolerancia=1e-6, max_ite
         return pv * (1 + i) ** n + pmt * ((1 + i) ** n - 1) / i - fv
 
     # Define a derivada de f(i)
-    def df(i, pv, pmt, n):
-        return pv * n * (1 + i) ** (n - 1) + pmt * (n * (1 + i) ** (n - 1) * i - ((1 + i) ** n - 1)) / (i ** 2)
+    def df(i, fv, pv, pmt, n):
+        # Calcula a derivada de f em relação a i
+        return (
+                pv * n * (1 + i) ** (n - 1)
+                + pmt * (n * (1 + i) ** (n - 1) * i - ((1 + i) ** n - 1)) / (i ** 2)
+        )
 
     try:
-        # Utiliza o metodo 'newton' da SciPy, passando a função, chute inicial, derivada e argumentos
-        i = newton(func=f, x0=taxa_inicial, fprime=df, args=(fv, pv, pmt, n), tol=tolerancia, maxiter=max_iter)
+        # Utiliza o método 'newton' da SciPy, passando a função, chute inicial, derivada e argumentos
+        i = newton(
+            func=f,
+            x0=taxa_inicial,
+            fprime=df,
+            args=(fv, pv, pmt, n),
+            tol=tolerancia,
+            maxiter=max_iter
+        )
         return i
     except RuntimeError:
         raise ValueError("Método SciPy Newton-Raphson não convergiu.")
@@ -313,22 +316,30 @@ def resolver_i_opcao():
 
     # Coleta dos dados de entrada
     try:
-        fv = float(input("Digite o Valor Futuro (FV) desejado em R$: ").replace(',', '.'))
+        fv_input = input("Digite o Valor Futuro (FV) desejado em R$: ").replace(',', '.')
+        fv = float(fv_input)
         if fv < 0:
             print("O Valor Futuro (FV) não pode ser negativo.")
             return
-        pv = float(input("Digite o Valor Presente (PV) em R$: ").replace(',', '.'))
+
+        pv_input = input("Digite o Valor Presente (PV) em R$: ").replace(',', '.')
+        pv = float(pv_input)
         if pv < 0:
             print("O Valor Presente (PV) não pode ser negativo.")
             return
-        pmt = float(input("Digite o valor da parcela mensal (PMT) em R$: ").replace(',', '.'))
+
+        pmt_input = input("Digite o valor da parcela mensal (PMT) em R$: ").replace(',', '.')
+        pmt = float(pmt_input)
         if pmt < 0:
             print("O valor da parcela (PMT) não pode ser negativo.")
             return
-        n = int(input("Digite o número de períodos (meses): "))
+
+        n_input = input("Digite o número de períodos (meses): ").replace(',', '.')
+        n = int(float(n_input))
         if n <= 0:
             print("O número de períodos deve ser positivo.")
             return
+
     except ValueError:
         print("Entrada inválida. Por favor, insira valores numéricos válidos.")
         return
@@ -354,7 +365,7 @@ def resolver_i_opcao():
             print(f"Erro no cálculo: {e}")
 
     elif metodo_escolha == '2':
-        # Metodo SciPy
+        # Método SciPy
         try:
             i = resolver_i_scipy(fv, pv, pmt, n)
             tae = (1 + i) ** 12 - 1  # Calculando a Taxa Anual Equivalente (TAE) com base na taxa mensal
@@ -369,8 +380,6 @@ def resolver_i_opcao():
             print(f"Erro no cálculo: {e}")
         except Exception as e:
             print(f"Erro no cálculo: {e}")
-    else:
-        print("Opção inválida. Por favor, escolha 1 ou 2.")
 
 
 def resolver_n_opcao():
@@ -612,16 +621,15 @@ def main():
         print("2. Calcular Valor Futuro (FV) com aportes regulares (Anuidade)")
         print("3. Calcular Valor Futuro (FV) com investimento inicial + aportes regulares")
         print("4. Resolver para o Aporte Mensal Necessário (PMT) ou Número de Períodos (n)")
-        print("5. Resolver para o Número de Períodos (n)")
-        print("6. Resolver para a Taxa de Juros (i)")
-        print("7. Sair")
+        print("5. Resolver para a Taxa de Juros (i)")
+        print("6. Sair")
 
-        escolha = input("\nDigite o número da opção desejada (1-7): ").strip()
-        if escolha not in [str(i) for i in range(1, 8)]:
-            print("Opção inválida. Por favor, escolha entre 1 e 7.")
+        escolha = input("\nDigite o número da opção desejada (1-6): ").strip()
+        if escolha not in [str(i) for i in range(1, 7)]:
+            print("Opção inválida. Por favor, escolha entre 1 e 6.")
             continue
 
-        if escolha == '7':
+        if escolha == '6':
             print("Encerrando o programa. Até logo!")
             break
 
@@ -634,8 +642,6 @@ def main():
         elif escolha == '4':
             resolver_pmt_opcao()
         elif escolha == '5':
-            resolver_n_opcao()
-        elif escolha == '6':
             resolver_i_opcao()
 
 
