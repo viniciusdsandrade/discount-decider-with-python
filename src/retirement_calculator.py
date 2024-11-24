@@ -151,7 +151,7 @@ def resolver_pmt(fv, pv, i, n):
 def resolver_i_tradicional(fv, pv, pmt, n, taxa_inicial=0.01, tolerancia=1e-6, max_iter=1000):
     """
     Calcula a Taxa de Juros (i) necessária para atingir um determinado Valor Futuro (FV)
-    usando o Método de Newton-Raphson.
+    usando o Metodo de Newton-Raphson.
 
     :param fv: Valor Futuro desejado
     :param pv: Valor Presente (investimento inicial)
@@ -199,13 +199,13 @@ def resolver_i_tradicional(fv, pv, pmt, n, taxa_inicial=0.01, tolerancia=1e-6, m
 
         i = i_new
 
-    raise ValueError("Método de Newton-Raphson não convergiu dentro do número máximo de iterações.")
+    raise ValueError("Metodo de Newton-Raphson não convergiu dentro do número máximo de iterações.")
 
 
 def resolver_i_scipy(fv, pv, pmt, n, taxa_inicial=0.01, tolerancia=1e-6, max_iter=1000):
     """
     Calcula a Taxa de Juros (i) necessária para atingir um determinado Valor Futuro (FV)
-    usando o Método de Newton-Raphson da biblioteca SciPy.
+    usando o Metodo de Newton-Raphson da biblioteca SciPy.
 
     :param fv: Valor Futuro desejado
     :param pv: Valor Presente (investimento inicial)
@@ -230,7 +230,7 @@ def resolver_i_scipy(fv, pv, pmt, n, taxa_inicial=0.01, tolerancia=1e-6, max_ite
         )
 
     try:
-        # Utiliza o método 'newton' da SciPy, passando a função, chute inicial, derivada e argumentos
+        # Utiliza o metodo 'newton' da SciPy, passando a função, chute inicial, derivada e argumentos
         i = newton(
             func=f,
             x0=taxa_inicial,
@@ -344,9 +344,9 @@ def resolver_i_opcao():
         print("Entrada inválida. Por favor, insira valores numéricos válidos.")
         return
 
-    # Escolha do método e cálculo da taxa de juros
+    # Escolha do metodo e cálculo da taxa de juros
     if metodo_escolha == '1':
-        # Método Tradicional
+        # Metodo Tradicional
         try:
             i = resolver_i_tradicional(fv, pv, pmt, n)
             tae = (1 + i) ** 12 - 1  # Calculando a Taxa Anual Equivalente (TAE) com base na taxa mensal
@@ -365,7 +365,7 @@ def resolver_i_opcao():
             print(f"Erro no cálculo: {e}")
 
     elif metodo_escolha == '2':
-        # Método SciPy
+        # Metodo SciPy
         try:
             i = resolver_i_scipy(fv, pv, pmt, n)
             tae = (1 + i) ** 12 - 1  # Calculando a Taxa Anual Equivalente (TAE) com base na taxa mensal
