@@ -1,7 +1,7 @@
 # retiremente_calculator.py
 
-import math
 from scipy.optimize import newton
+import math
 
 
 def resolver_n(fv, pmt, pv, i):
