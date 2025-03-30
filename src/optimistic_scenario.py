@@ -10,17 +10,22 @@ Simulação para calcular o patrimônio acumulado em 30 anos, considerando:
         * Anos 11 a 15:   R$ 18.000
         * Anos 16 a 25:   R$ 25.000
         * Anos 26 a 30:   R$ 28.000
-    - Três cenários de poupança: guardar 1/6, 1/5 e 1/4 do salário (contribuição anual baseada no salário do período).
-    - Os aportes são realizados ao final de cada ano e investidos a uma taxa de 14,25% ao ano (juros compostos).
-    - Uma inflação média de 7% ao ano é considerada para calcular o poder de compra real (deflacionando os valores acumulados).
+    - Três cenários de poupança: guardar 1/6, 1/5 e 1/4 do salário,
+      onde o aporte anual é calculado com base no salário do período.
+    - Os aportes são realizados no final de cada ano e investidos a uma taxa de 14,25% ao ano (juros compostos).
+    - É considerada uma inflação média de 7% ao ano para deflacionar os valores e obter o poder de compra atual.
 
-Para cada cenário, o programa calcula:
-  1. O patrimônio acumulado nominal em 30 anos.
-  2. O rendimento anual e mensal nominal (assumindo que os investimentos rendem 14,25% ao ano).
-  3. O patrimônio acumulado real (em termos de valores de hoje), deflacionado pela inflação acumulada em 30 anos.
-  4. O rendimento anual e mensal real.
+Para cada cenário, o programa calcula e exibe:
+  1. Patrimônio Nominal acumulado em 30 anos.
+  2. Patrimônio Real (em termos de valores de hoje).
+  3. Rendimento Anual Nominal (14,25% do patrimônio nominal).
+  4. Rendimento Anual Real (14,25% do patrimônio real).
+  5. Rendimento Mensal Nominal (dividido por 12).
+  6. Rendimento Mensal Real (dividido por 12).
+  7. Média Mensal Acumulada Nominal (patrimônio nominal ÷ 360).
+  8. Média Mensal Acumulada Real (patrimônio real ÷ 360).
 
-A deflação é feita dividindo os valores nominais pelo fator acumulado de inflação: (1 + 0.07)^30.
+Essa "média mensal acumulada" mostra quanto, em média, foi poupado por mês ao longo dos 30 anos.
 """
 
 
@@ -45,9 +50,9 @@ def salario_por_ano(ano):
 def simular_poupanca(fracao_poupanca, anos_totais=30, taxa_juros=0.1425):
     """
     Simula o acúmulo de capital durante 'anos_totais' anos.
-    Os aportes são realizados no final de cada ano e correspondem a:
-       Aporte anual = (salário mensal * 12) * fracao_poupanca
-    Os aportes são investidos a uma taxa anual 'taxa_juros' (composta).
+    Cada aporte anual é calculado como:
+         Aporte = (salário mensal * 12) * fracao_poupanca
+    O aporte é realizado no final do ano e composto à taxa 'taxa_juros' durante os anos restantes até 30.
     Retorna o patrimônio acumulado nominal ao final do período.
     """
     patrimonio = 0
@@ -55,7 +60,7 @@ def simular_poupanca(fracao_poupanca, anos_totais=30, taxa_juros=0.1425):
         sal_mensal = salario_por_ano(ano)
         salario_anual = sal_mensal * 12
         aporte = salario_anual * fracao_poupanca
-        # Tempo de composição: quantos anos o aporte terá para render até o final de 30 anos
+        # Tempo de composição para o aporte realizado no final do ano "ano":
         anos_compostos = anos_totais - ano
         patrimonio += aporte * ((1 + taxa_juros) ** anos_compostos)
     return patrimonio
@@ -66,7 +71,7 @@ def main():
     taxa_juros = 0.1425  # 14,25% ao ano
     inflacao = 0.07  # 7% ao ano
 
-    # Cenários de poupança: 1/6, 1/5, 1/4 do salário
+    # Cenários de poupança: 1/6, 1/5 e 1/4 do salário
     cenarios = {
         "1/6": 1 / 6,
         "1/5": 1 / 5,
@@ -75,6 +80,7 @@ def main():
 
     # Fator de inflação acumulado em 30 anos
     fator_inflacao = (1 + inflacao) ** anos_totais
+    total_meses = anos_totais * 12  # 360 meses
 
     print("Simulação de Acúmulo de Capital em 30 anos (Valores Nominais e Reais)")
     print("--------------------------------------------------------------")
@@ -85,27 +91,41 @@ def main():
     print("  Anos 11-15:  R$ 18.000")
     print("  Anos 16-25:  R$ 25.000")
     print("  Anos 26-30:  R$ 28.000")
-    print("Taxa de rendimento: 14,25% ao ano")
+    print("Taxa de rendimento dos investimentos: 14,25% ao ano")
     print("Taxa de inflação: 7% ao ano")
     print("--------------------------------------------------------------\n")
+
+    # Cabeçalho da tabela
+    print("{:<10}{:<28}{:<28}{:<28}{:<28}{:<28}{:<28}{:<28}".format(
+        "Cenário",
+        "Patrimônio Nominal (R$)",
+        "Patrimônio Real (R$)",
+        "Rend. Anual Nominal (R$)",
+        "Rend. Anual Real (R$)",
+        "Rend. Mensal Real (R$)",
+        "Média Mensal Nominal (R$)",
+        "Média Mensal Real (R$)"
+    ))
 
     for nome, fracao in cenarios.items():
         patrimonio_nominal = simular_poupanca(fracao, anos_totais, taxa_juros)
         rendimento_anual_nominal = patrimonio_nominal * taxa_juros
         rendimento_mensal_nominal = rendimento_anual_nominal / 12
 
-        # Valores reais: deflaciona os valores nominais pelo fator acumulado de inflação em 30 anos
+        # Valores reais: deflaciona os valores nominais pelo fator acumulado de inflação
         patrimonio_real = patrimonio_nominal / fator_inflacao
         rendimento_anual_real = rendimento_anual_nominal / fator_inflacao
         rendimento_mensal_real = rendimento_anual_real / 12
 
-        print(f"Cenário: Poupar {nome} do salário")
-        print(f"  Patrimônio acumulado nominal em 30 anos: R$ {patrimonio_nominal:,.2f}")
-        print(f"  Rendimento anual nominal (14,25%): R$ {rendimento_anual_nominal:,.2f}")
-        print(f"  Rendimento mensal nominal: R$ {rendimento_mensal_nominal:,.2f}")
-        print(f"  Patrimônio acumulado real (valor de hoje): R$ {patrimonio_real:,.2f}")
-        print(f"  Rendimento anual real: R$ {rendimento_anual_real:,.2f}")
-        print(f"  Rendimento mensal real: R$ {rendimento_mensal_real:,.2f}\n")
+        # Média mensal acumulada (nominal e real)
+        media_mensal_nominal = patrimonio_nominal / total_meses
+        media_mensal_real = patrimonio_real / total_meses
+
+        print("{:<10}{:<28,.2f}{:<28,.2f}{:<28,.2f}{:<28,.2f}{:<28,.2f}{:<28,.2f}{:<28,.2f}".format(
+            nome, patrimonio_nominal, patrimonio_real, rendimento_anual_nominal,
+            rendimento_anual_real, rendimento_mensal_real, media_mensal_nominal,
+            media_mensal_real
+        ))
 
 
 if __name__ == "__main__":
